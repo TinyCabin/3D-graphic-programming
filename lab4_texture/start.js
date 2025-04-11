@@ -53,8 +53,10 @@ function start() {
     void main(void)
     {
         //frag_color = vec4(fragColor, 1.0);
-        frag_color = mix(texture1,TexCoord);
-        //frag_color = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), 0.5);
+
+        //frag_color = texture(texture1, TexCoord);
+        //frag_color = mix(texture1,TexCoord);
+        frag_color = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), 0.5);
 
     }`;
 
@@ -286,38 +288,33 @@ function start() {
         //
 
         //TEXTURE 2
-        // const texture1 = gl.createTexture();
-        // gl.bindTexture(gl.TEXTURE_2D, texture1);
-        // const level = 0;
-        // const internalFormat = gl.RGBA;
-        // const width = 1;
-        // const height = 1;
-        // const border = 0;
-        // const srcFormat = gl.RGBA;
-        // const srcType = gl.UNSIGNED_BYTE;
-        // const pixel = new Uint8Array([0, 0, 255, 255]);
-        // gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,width, height, border, srcFormat, srcType, pixel);
-        // const image = new Image();
-    
+            const texture2 = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture2);
             
-        //     image.onload = function() {
-        //         gl.bindTexture(gl.TEXTURE_2D, texture1);
-        //         gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,srcFormat, srcType, image);
+            // Temporary texture while loading
+            gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, 
+                        new Uint8Array([255, 0, 0, 255])); // Red placeholder
+            
+            // Load the second texture
+            const image2 = new Image();
+            image2.onload = function() {
+                gl.bindTexture(gl.TEXTURE_2D, texture2);
+                gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image2);
                 
-        //         gl.generateMipmap(gl.TEXTURE_2D);   
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);          
-        //     };
-        //     image.crossOrigin = ""; 
-        //     image.src = "https://cdn.pixabay.com/photo/2013/09/22/19/14/brick-wall-185081_960_720.jpg"
-        //     //
+                gl.generateMipmap(gl.TEXTURE_2D);   
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);          
+            };
+        image2.crossOrigin = ""; 
+        image2.src = "https://cdn.pixabay.com/photo/2016/12/18/21/23/brick-wall-1916752_1280.jpg"
+            
 
         //TEXUTRE MIX
 
-    // gl.uniform1i(gl.getUniformLocation(program, "texture1"), 0); 
-    // gl.uniform1i(gl.getUniformLocation(program, "texture2"), 1);
+    gl.uniform1i(gl.getUniformLocation(program, "texture1"), 0); 
+    gl.uniform1i(gl.getUniformLocation(program, "texture2"), 1);
 
 
 
@@ -382,9 +379,10 @@ function start() {
         gl.uniformMatrix4fv(uniProj, false, proj);
 
         //Drawing cube with texures (Adding texures)
-
-            gl.activeTextue(gl.TEXTURE0);
+            gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture1);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, texture2);
 
         // Draw the cube
         gl.drawArrays(gl.TRIANGLES, 0, 36);
