@@ -409,7 +409,7 @@ function start() {
         
         // Rotate model slightly
         mat4.rotate(model, model, 0 * Math.PI / 180, [0, 0, 1]);
-
+    
         // Set up view matrix
         const lookAtTarget = {
             x: cameraPos.x + cameraFront.x,
@@ -422,54 +422,67 @@ function start() {
             [lookAtTarget.x, lookAtTarget.y, lookAtTarget.z], 
             [cameraUp.x, cameraUp.y, cameraUp.z]
         );
-
+    
         // Set uniform matrices
         gl.uniformMatrix4fv(uniModel, false, model);
         gl.uniformMatrix4fv(uniView, false, view);
-
-         // Draw skydome first (with depth function modified)
-         gl.depthFunc(gl.LEQUAL); // Important for skydome!
-         gl.bindBuffer(gl.ARRAY_BUFFER, skyBuffer);
-         vertexBinding();
-         gl.bindTexture(gl.TEXTURE_2D, skyTexture);
-         gl.drawArrays(gl.TRIANGLES, 0, 36); // Sky dome has 36 vertices (cube)
-         gl.depthFunc(gl.LESS); // Reset depth func
- 
-         // Draw each of the 5 models with their respective textures
-         if (buffer1 && points1) {
-             gl.bindBuffer(gl.ARRAY_BUFFER, buffer1);
-             vertexBinding();
-             gl.bindTexture(gl.TEXTURE_2D, texture1);
-             gl.drawArrays(gl.TRIANGLES, 0, points1);
-         }
- 
-         if (buffer2 && points2) {
-             gl.bindBuffer(gl.ARRAY_BUFFER, buffer2);
-             vertexBinding();
-             gl.bindTexture(gl.TEXTURE_2D, texture2);
-             gl.drawArrays(gl.TRIANGLES, 0, points2);
-         }
- 
-         if (buffer3 && points3) {
-             gl.bindBuffer(gl.ARRAY_BUFFER, buffer3);
-             vertexBinding();
-             gl.bindTexture(gl.TEXTURE_2D, texture3);
-             gl.drawArrays(gl.TRIANGLES, 0, points3);
-         }
- 
-         if (buffer4 && points4) {
-             gl.bindBuffer(gl.ARRAY_BUFFER, buffer4);
-             vertexBinding();
-             gl.bindTexture(gl.TEXTURE_2D, texture4);
-             gl.drawArrays(gl.TRIANGLES, 0, points4);
-         }
- 
-         if (buffer5 && points5) {
-             gl.bindBuffer(gl.ARRAY_BUFFER, buffer5);
-             vertexBinding();
-             gl.bindTexture(gl.TEXTURE_2D, texture5);
-             gl.drawArrays(gl.TRIANGLES, 0, points5);
-         }
+    
+        // Draw skydome first (with depth function modified)
+        gl.depthFunc(gl.LEQUAL); // Important for skydome!
+        gl.bindBuffer(gl.ARRAY_BUFFER, skyBuffer);
+        vertexBinding();
+        gl.bindTexture(gl.TEXTURE_2D, skyTexture);
+        gl.drawArrays(gl.TRIANGLES, 0, 36); // Sky dome has 36 vertices (cube)
+        gl.depthFunc(gl.LESS); // Reset depth func
+    
+        // Check if any OBJ model has been loaded
+        let modelsLoaded = (buffer1 && points1) || (buffer2 && points2) || 
+                           (buffer3 && points3) || (buffer4 && points4) || 
+                           (buffer5 && points5);
+        
+        // If no models loaded, draw the default cube
+        if (!modelsLoaded) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer);
+            vertexBinding();
+            gl.bindTexture(gl.TEXTURE_2D, texture1);
+            gl.drawArrays(gl.TRIANGLES, 0, 36); // Default cube has 36 vertices
+        } else {
+            // Draw each of the loaded models with their respective textures
+            if (buffer1 && points1) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer1);
+                vertexBinding();
+                gl.bindTexture(gl.TEXTURE_2D, texture1);
+                gl.drawArrays(gl.TRIANGLES, 0, points1);
+            }
+    
+            if (buffer2 && points2) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer2);
+                vertexBinding();
+                gl.bindTexture(gl.TEXTURE_2D, texture2);
+                gl.drawArrays(gl.TRIANGLES, 0, points2);
+            }
+    
+            if (buffer3 && points3) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer3);
+                vertexBinding();
+                gl.bindTexture(gl.TEXTURE_2D, texture3);
+                gl.drawArrays(gl.TRIANGLES, 0, points3);
+            }
+    
+            if (buffer4 && points4) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer4);
+                vertexBinding();
+                gl.bindTexture(gl.TEXTURE_2D, texture4);
+                gl.drawArrays(gl.TRIANGLES, 0, points4);
+            }
+    
+            if (buffer5 && points5) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer5);
+                vertexBinding();
+                gl.bindTexture(gl.TEXTURE_2D, texture5);
+                gl.drawArrays(gl.TRIANGLES, 0, points5);
+            }
+        }
     }
 
     function renderTextureScene(texture){ 
