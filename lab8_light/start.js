@@ -1,7 +1,8 @@
 let object_number = 1;
 let buffer1, buffer2, buffer3, buffer4, buffer5, skyBuffer;
 let points1, points2, points3, points4, points5;
-let skyTexture
+let skyTexture;
+let program;
 
 async function loadFile(file) {
     text = await file.text();
@@ -242,11 +243,14 @@ function initialShaders(){
     precision highp float;
 
     in vec3 position;
-    in vec3 color;
+    //in vec3 color;
     in vec2 aTexCoord;
 
+    in vec3 aNormal;
+
+    out vec3 Normal;
     out vec2 TexCoord;
-    out vec3 fragColor;
+    out vec3 FragPos;
 
     uniform mat4 model;
     uniform mat4 view;
@@ -255,8 +259,10 @@ function initialShaders(){
     void main(void)
     {
         TexCoord = aTexCoord;
-        fragColor = color;
+        Normal = aNormal;
+        //fragColor = color;
         gl_Position = proj * view * model * vec4(position, 1.0);
+        FragPos = vec3(model * vec4(position, 1.0));
     }`;
 
 
@@ -268,46 +274,89 @@ function initialShaders(){
     in vec3 fragColor;
     in vec2 TexCoord;
 
+    in vec3 Normal;
+    in vec3 FragPos;
+
     uniform sampler2D texture1;
     uniform sampler2D texture2;
+    uniform vec3 camPos;
+    uniform vec3 lightPos;
 
     out vec4 frag_color;
     void main(void)
     {
-        frag_color = texture(texture1, TexCoord);
+        //frag_color = texture(texture1, TexCoord);
         //frag_color = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), 0.5);
 
+        //ambient
+        float ambientStrength = 0.1;
+        vec3 ambientlightColor = ambientStrength* vec3(1.0,1.0,1.0);
+        vec4 ambient = vec4(ambientlightColor,1.0);
+
+         // diffuse 
+        float diffuseStrength = 1.0;  
+        vec3 diffuselightColor = vec3(1.0,1.0,1.0);
+        vec3 norm = normalize(Normal);
+        vec3 lightDir = normalize(lightPos - FragPos);
+        float diff = max(dot(norm, lightDir), 0.0);
+        vec3 diffvec = diff * diffuselightColor*diffuseStrength;
+        vec4 diffuse = vec4(diffvec,1.0);
+
+         //specular
+        float specularStrength = 1.0;
+        vec3 specularlightColor = vec3(1.0,1.0,1.0);
+        vec3 viewDir = normalize(camPos - FragPos);
+        vec3 reflectDir = reflect(-lightDir, norm);
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 128.0);
+        vec3 spec_final = specularStrength * spec * specularlightColor;
+        vec4 specular = vec4(spec_final, 1.0);
+
+        //disstance
+        float dist= distance(lightPos,FragPos);
+        dist = (20.0-dist)/20.0;
+        dist = max(dist, 0.0);
+
+        frag_color = (ambient + dist*diffuse+dist*spec) * texture(texture1, TexCoord);
+        
     }`;
 }
 
-function compileShader(vs, fs, program){
-
+function compileShader(vs, fs, program) {
+    // Compile vertex shader
     gl.shaderSource(vs, vsSource);
     gl.compileShader(vs);
     if(!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
-        alert(gl.getShaderInfoLog(vs));
-        console.log("\nVertex Shader ERROR\n");
-        return;
+        console.error("ERROR compiling vertex shader!", gl.getShaderInfoLog(vs));
+        return false;
     }
 
+    // Compile fragment shader
     gl.shaderSource(fs, fsSource);
     gl.compileShader(fs);
     if(!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
-        alert(gl.getShaderInfoLog(fs));
-        console.log("\nFragment Shader ERROR");
-        return;
+        console.error("ERROR compiling fragment shader!", gl.getShaderInfoLog(fs));
+        return false;
     }
 
+    // Link program
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
     gl.linkProgram(program);
-
+    
     if(!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        alert(gl.getProgramInfoLog(program));
-        return;
+        console.error("ERROR linking program!", gl.getProgramInfoLog(program));
+        return false;
     }
-
+    
+    // Validate program (optional but recommended)
+    gl.validateProgram(program);
+    if(!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
+        console.error("ERROR validating program!", gl.getProgramInfoLog(program));
+        return false;
+    }
+    
     gl.useProgram(program);
+    return true;
 }
 
 
@@ -349,9 +398,9 @@ function start() {
         gl.enableVertexAttribArray(positionAttrib);
         gl.vertexAttribPointer(positionAttrib, 3, gl.FLOAT, false, 8*4, 0);
 
-        const colorAttrib = gl.getAttribLocation(program, "color");
-        gl.enableVertexAttribArray(colorAttrib);
-        gl.vertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, 8*4, 3*4);
+        const normalAttrib = gl.getAttribLocation(program, "aNormal");
+        gl.enableVertexAttribArray(normalAttrib);
+        gl.vertexAttribPointer(normalAttrib, 3, gl.FLOAT, false, 8*4, 3*4);
 
         const texCoord = gl.getAttribLocation(program, "aTexCoord");
         gl.enableVertexAttribArray(texCoord);
@@ -384,6 +433,9 @@ function start() {
             cameraPos.y -= cameraRight.y * cameraSpeed;
             cameraPos.z -= cameraRight.z * cameraSpeed;
         }
+
+        let cameraPosTmp = [cameraPos.x,cameraPos.y,cameraPos.z];
+        gl.uniform3fv(uniCamPos,new Float32Array(cameraPosTmp));
     }
 
     function updateFps(){
@@ -416,8 +468,6 @@ function start() {
             y: cameraPos.y + cameraFront.y,
             z: cameraPos.z + cameraFront.z
         };
-
-        
         
         mat4.lookAt(view, 
             [cameraPos.x, cameraPos.y, cameraPos.z], 
@@ -530,13 +580,15 @@ function start() {
     //Initial shaders 
     initialShaders();
 
-    // Shader compilation and program setup
     const vs = gl.createShader(gl.VERTEX_SHADER);  
     const fs = gl.createShader(gl.FRAGMENT_SHADER);
-    const program = gl.createProgram();
+    program = gl.createProgram(); // Make sure it's globally accessible
    
-    //Compile shaders
-    compileShader(vs,fs,program);
+    // Compile shaders and check result
+    if (!compileShader(vs, fs, program)) {
+        console.error("Failed to initialize shaders. Aborting rendering.");
+        return;
+    }
    
     const cubeBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer);
@@ -561,9 +613,13 @@ function start() {
     let firstMouse = true;
     const sensitivity = 0.1;
 
+    var uniCamPos = gl.getUniformLocation(program, 'camPos');
+    const posLight = [10,1,2];
+    var lightPos_loc = gl.getUniformLocation(program, 'lightPos'); 
+    gl.uniform3fv(lightPos_loc,new Float32Array(posLight));
+
 
     const fpsElement = document.getElementById('fps');
-
 
 
     // Texture loading
@@ -584,12 +640,12 @@ function start() {
 
     const texture4 = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture4);
-    const src4 = "https://cdn.pixabay.com/photo/2015/11/04/17/22/panorama-1023053_1280.jpg";
+    const src4 = "https://cdn.pixabay.com/photo/2014/04/05/11/09/wood-314773_1280.jpg";
     loadTextures(texture4, src4);
 
     const texture5 = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture5);
-    const src5 = "https://cdn.pixabay.com/photo/2015/12/03/08/50/wood-texture-1074134_1280.jpg";
+    const src5 = "https://th.bing.com/th/id/OIP.BKirXfwEMiwAbmVGqIZ2qQHaE8?cb=iwc1&rs=1&pid=ImgDetMain";
     loadTextures(texture5, src5);
     
     // Skydome texture
